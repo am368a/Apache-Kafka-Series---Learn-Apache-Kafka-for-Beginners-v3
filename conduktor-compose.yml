@@ -1,0 +1,45 @@
+# Minimal Conduktor Console (Community Edition) + PostgreSQL.
+# Taken from the Conduktor skill's deploy guide. Run on your own machine:
+#   docker compose up -d
+#   until curl -sf http://localhost:8080/api/health/ready; do sleep 5; done
+# Then open http://localhost:8080 and log in with the admin account below.
+#
+# Change both passwords before using this for anything beyond a local test.
+# CDK_ADMIN_PASSWORD needs 8+ chars with upper, lower, digit and symbol,
+# or Console refuses to start.
+services:
+  postgresql:
+    image: postgres:14
+    hostname: postgresql
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: "conduktor"
+      POSTGRES_USER: "conduktor"
+      POSTGRES_PASSWORD: "change_me"
+      POSTGRES_HOST_AUTH_METHOD: "scram-sha-256"
+    healthcheck:
+      test: pg_isready -U conduktor -d conduktor
+      interval: 5s
+      retries: 10
+
+  conduktor-console:
+    image: conduktor/conduktor-console:1.47.2
+    depends_on:
+      postgresql:
+        condition: service_healthy
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - conduktor_data:/var/conduktor
+    environment:
+      CDK_DATABASE_URL: "postgresql://conduktor:change_me@postgresql:5432/conduktor"
+      CDK_ORGANIZATION_NAME: "demo"
+      CDK_ADMIN_EMAIL: "admin@company.io"
+      CDK_ADMIN_PASSWORD: "Change_me1!"
+      CDK_LICENSE: "${CDK_LICENSE:-}"
+
+volumes:
+  pg_data: {}
+  conduktor_data: {}
